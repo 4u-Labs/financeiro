@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>4U Finance Pro — Gestão Financeira Inteligente</title>
+    
+    <!-- Favicon & PWA -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png"/>
+    <meta name="theme-color" content="#0b0f19"/>
+
+    <!-- Google Fonts & FontAwesome -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Orbitron:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+
+    <!-- Fintech Design System Stylesheet -->
+    <link rel="stylesheet" href="style.css"/>
+
+    <!-- Libraries (Chart.js & jsPDF) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        
+        <!-- ==========================================================================
+             TOPBAR & CONTROLS
+             ========================================================================== -->
+        <header class="topbar glass">
+            <div class="brand-wrapper">
+                <!-- 4U Glowing Vector Logo -->
+                <svg class="brand-logo-svg" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#10b981" />
+                            <stop offset="50%" stop-color="#06b6d4" />
+                            <stop offset="100%" stop-color="#8b5cf6" />
+                        </linearGradient>
+                    </defs>
+                    <rect x="6" y="6" width="88" height="88" rx="24" fill="#111827" stroke="url(#logoGrad)" stroke-width="4.5" />
+                    <!-- "4" -->
+                    <path d="M26 62 L46 28 L51 28 L51 64 M38 54 L62 54" stroke="url(#logoGrad)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" />
+                    <!-- "U" & Financial Trend -->
+                    <path d="M64 36 L78 36 L78 48 M78 36 L60 54" stroke="#10b981" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="brand-text">
+                    <h1>4U FINANCE <span class="brand-badge">PRO</span></h1>
+                    <div class="brand-subtitle">Gestão Financeira Pessoal & Corporativa</div>
+                </div>
+            </div>
+
+            <!-- Month Navigator Pill -->
+            <div class="month-selector">
+                <button type="button" class="btn-nav-month" title="Mês Anterior" onclick="app.navigateMonth(-1)">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div class="current-month-display" id="currentMonthDisplay" onclick="app.goToCurrentMonth()" title="Clique para voltar ao mês atual">
+                    Carregando...
+                </div>
+                <button type="button" class="btn-nav-month" title="Próximo Mês" onclick="app.navigateMonth(1)">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+
+            <!-- Actions Controls -->
+            <div class="topbar-controls">
+                <!-- Privacy Mode Button -->
+                <button type="button" class="btn-icon" id="btnPrivacyToggle" title="Ocultar valores monetários" onclick="app.togglePrivacyMode()">
+                    <i class="fas fa-eye"></i>
+                </button>
+
+                <!-- Calculators Button -->
+                <button type="button" class="btn-icon" title="Calculadoras Financeiras" onclick="app.openModal('modalCalculators')">
+                    <i class="fas fa-calculator"></i>
+                </button>
+
+                <!-- Sync & Export Dropdown -->
+                <div class="dropdown-container">
+                    <button type="button" class="btn-icon" title="Menu de Importação e Exportação" onclick="app.toggleDropdown('menuSync')">
+                        <i class="fas fa-cloud-arrow-up"></i>
+                    </button>
+                    <div class="dropdown-menu" id="menuSync">
+                        <button type="button" class="dropdown-item" onclick="app.openModal('modalOFX'); app.toggleDropdown('menuSync');">
+                            <i class="fas fa-file-invoice-dollar" style="color: var(--accent-emerald);"></i> Importar Extrato (OFX)
+                        </button>
+                        <button type="button" class="dropdown-item" onclick="document.getElementById('inputCSVRestore').click(); app.toggleDropdown('menuSync');">
+                            <i class="fas fa-file-csv" style="color: var(--accent-cyan);"></i> Importar CSV
+                        </button>
+                        <button type="button" class="dropdown-item" onclick="app.exportExecutivePDF(); app.toggleDropdown('menuSync');">
+                            <i class="fas fa-file-pdf" style="color: var(--accent-rose);"></i> Relatório Executivo (PDF)
+                        </button>
+                        <button type="button" class="dropdown-item" onclick="app.exportCSV(); app.toggleDropdown('menuSync');">
+                            <i class="fas fa-file-export" style="color: var(--accent-amber);"></i> Exportar Extrato (CSV)
+                        </button>
+                        <hr style="border: 0; border-top: 1px solid var(--border-subtle); margin: 4px 0;">
+                        <button type="button" class="dropdown-item" onclick="app.exportFullBackupJSON(); app.toggleDropdown('menuSync');">
+                            <i class="fas fa-shield-halved" style="color: var(--accent-purple);"></i> Backup Completo (JSON)
+                        </button>
+                        <button type="button" class="dropdown-item" onclick="document.getElementById('inputJSONRestore').click(); app.toggleDropdown('menuSync');">
+                            <i class="fas fa-arrow-rotate-left" style="color: var(--accent-blue);"></i> Restaurar Backup (JSON)
+                        </button>
+                        <hr style="border: 0; border-top: 1px solid var(--border-subtle); margin: 4px 0;">
+                        <button type="button" class="dropdown-item danger" onclick="app.resetAllData()">
+                            <i class="fas fa-trash-can"></i> Zerar / Reset Geral
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Hidden Inputs for Files -->
+        <input type="file" id="inputJSONRestore" accept=".json" style="display: none;" onchange="app.handleJSONBackupRestore(this.files[0])">
+        <input type="file" id="inputCSVRestore" accept=".csv" style="display: none;" onchange="app.handleOFXFile(this.files[0])">
+
+        <!-- ==========================================================================
+             ACCOUNTS & WALLETS TICKER BAR
+             ========================================================================== -->
+        <div class="accounts-strip" id="accountsStripContainer">
+            <!-- Dynamically populated by JS -->
+        </div>
+
+        <!-- ==========================================================================
+             KPI SUMMARY CARDS
+             ========================================================================== -->
+        <div class="summary-grid">
+            <!-- Net Worth -->
+            <div class="kpi-card glass kpi-balance">
+                <div class="kpi-header">
+                    <span class="kpi-title">Patrimônio Líquido</span>
+                    <div class="kpi-icon"><i class="fas fa-vault"></i></div>
+                </div>
+                <div class="kpi-value privacy-mask" id="kpiTotalBalance">R$ 0,00</div>
+                <span class="kpi-badge neutral"><i class="fas fa-wallet"></i> Saldo consolidado</span>
+            </div>
+
+            <!-- Incomes -->
+            <div class="kpi-card glass kpi-income">
+                <div class="kpi-header">
+                    <span class="kpi-title">Receitas do Mês</span>
+                    <div class="kpi-icon"><i class="fas fa-arrow-down-left"></i></div>
+                </div>
+                <div class="kpi-value privacy-mask" id="kpiMonthIncome">R$ 0,00</div>
+                <span class="kpi-badge up" id="kpiIncomeDelta"><i class="fas fa-minus"></i> Calculando...</span>
+            </div>
+
+            <!-- Expenses -->
+            <div class="kpi-card glass kpi-expense">
+                <div class="kpi-header">
+                    <span class="kpi-title">Despesas do Mês</span>
+                    <div class="kpi-icon"><i class="fas fa-arrow-up-right"></i></div>
+                </div>
+                <div class="kpi-value privacy-mask" id="kpiMonthExpense">R$ 0,00</div>
+                <span class="kpi-badge down" id="kpiExpenseDelta"><i class="fas fa-minus"></i> Calculando...</span>
+            </div>
+
+            <!-- Forecast -->
+            <div class="kpi-card glass kpi-forecast">
+                <div class="kpi-header">
+                    <span class="kpi-title">Saldo Previsto (Fim do Mês)</span>
+                    <div class="kpi-icon"><i class="fas fa-chart-line"></i></div>
+                </div>
+                <div class="kpi-value privacy-mask" id="kpiMonthForecast">R$ 0,00</div>
+                <span class="kpi-badge neutral"><i class="far fa-clock"></i> Com agendados</span>
+            </div>
+        </div>
+
+        <!-- ==========================================================================
+             50 / 30 / 20 FINANCIAL RULE GAUGE
+             ========================================================================== -->
+        <section class="budget-rule-section glass">
+            <div class="rule-header">
+                <div>
+                    <div class="rule-title">
+                        <i class="fas fa-bullseye" style="color: var(--accent-emerald);"></i> 
+                        Saúde Financeira — Regra 50 / 30 / 20
+                    </div>
+                    <div class="rule-tagline">Distribuição ideal dos seus gastos mensais</div>
+                </div>
+            </div>
+            
+            <div class="rule-bar-container">
+                <div class="rule-segment necessity" id="segNecessity" style="width: 50%;"></div>
+                <div class="rule-segment desire" id="segDesire" style="width: 30%;"></div>
+                <div class="rule-segment invest" id="segInvest" style="width: 20%;"></div>
+            </div>
+
+            <div class="rule-legend-grid">
+                <div class="rule-legend-item">
+                    <div class="rule-dot necessity"></div>
+                    <div>
+                        <div class="rule-legend-label">Necessidades (Meta 50%)</div>
+                        <div class="rule-legend-values privacy-mask" id="valNecessity">R$ 0,00 (0%)</div>
+                    </div>
+                </div>
+                <div class="rule-legend-item">
+                    <div class="rule-dot desire"></div>
+                    <div>
+                        <div class="rule-legend-label">Desejos & Estilo de Vida (Meta 30%)</div>
+                        <div class="rule-legend-values privacy-mask" id="valDesire">R$ 0,00 (0%)</div>
+                    </div>
+                </div>
+                <div class="rule-legend-item">
+                    <div class="rule-dot invest"></div>
+                    <div>
+                        <div class="rule-legend-label">Investimentos & Futuro (Meta 20%)</div>
+                        <div class="rule-legend-values privacy-mask" id="valInvest">R$ 0,00 (0%)</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================================================
+             CHARTS SECTION (CASH FLOW & CATEGORIES)
+             ========================================================================== -->
+        <div class="charts-main-grid">
+            <div class="chart-card glass">
+                <div class="chart-card-header">
+                    <div class="chart-card-title">
+                        <i class="fas fa-chart-column" style="color: var(--accent-cyan);"></i>
+                        Fluxo de Caixa dos Últimos 6 Meses
+                    </div>
+                </div>
+                <div class="chart-canvas-wrap">
+                    <canvas id="cashFlowChartCanvas"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card glass">
+                <div class="chart-card-header">
+                    <div class="chart-card-title">
+                        <i class="fas fa-chart-pie" style="color: var(--accent-purple);"></i>
+                        Despesas por Categoria
+                    </div>
+                </div>
+                <div class="chart-canvas-wrap">
+                    <canvas id="categoryChartCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================================================
+             SMART TRANSACTION FORM
+             ========================================================================== -->
+        <section class="form-card glass">
+            <div class="form-header-bar">
+                <div class="form-header-title">
+                    <i class="fas fa-file-invoice" style="color: var(--accent-emerald);"></i>
+                    Novo Lançamento Inteligente
+                </div>
+            </div>
+
+            <!-- Type Pill Selector -->
+            <div class="type-selector-pills">
+                <button type="button" class="type-pill-btn active expense" data-type="expense" onclick="app.setType('expense')">
+                    <i class="fas fa-arrow-trend-down"></i> Despesa
+                </button>
+                <button type="button" class="type-pill-btn income" data-type="income" onclick="app.setType('income')">
+                    <i class="fas fa-arrow-trend-up"></i> Receita
+                </button>
+                <button type="button" class="type-pill-btn transfer" data-type="transfer" onclick="app.setType('transfer')">
+                    <i class="fas fa-arrow-right-arrow-left"></i> Transferência
+                </button>
+            </div>
+
+            <form id="transactionForm">
+                <input type="hidden" id="txType" value="expense">
+
+                <div class="inputs-grid">
+                    <div class="input-group">
+                        <label class="input-label" for="txDescription">Descrição</label>
+                        <input type="text" class="input-field" id="txDescription" placeholder="Ex: Supermercado, Salário, Internet..." required>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label" for="txAmount">Valor (R$)</label>
+                        <input type="number" step="0.01" min="0.01" class="input-field" id="txAmount" placeholder="0,00" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label" for="txCategory">Categoria</label>
+                        <select class="input-field" id="txCategory" required>
+                            <option value="">Selecione...</option>
+                            <optgroup label="Despesas Essenciais (Necessidades 50%)">
+                                <option value="Alimentação">🍽️ Alimentação / Supermercado</option>
+                                <option value="Moradia">🏠 Moradia / Aluguel / Condomínio</option>
+                                <option value="Contas">📄 Água / Luz / Internet</option>
+                                <option value="Transporte">🚗 Transporte / Combustível / Uber</option>
+                                <option value="Saúde">🩺 Saúde / Farmácia / Plano</option>
+                                <option value="Educação">📚 Educação / Cursos</option>
+                            </optgroup>
+                            <optgroup label="Estilo de Vida (Desejos 30%)">
+                                <option value="Lazer">🎮 Lazer / Cinema / Bares</option>
+                                <option value="Streaming">📺 Streaming (Netflix / Spotify)</option>
+                                <option value="Compras">🛍️ Compras / Roupas / Tech</option>
+                                <option value="Viagem">✈️ Viagem / Hotéis</option>
+                            </optgroup>
+                            <optgroup label="Futuro (Investimentos 20%)">
+                                <option value="Investimentos">📈 Aportes / Ações / Fundos</option>
+                                <option value="Reserva">🛡️ Reserva de Emergência</option>
+                                <option value="Poupança">🐷 Poupança</option>
+                            </optgroup>
+                            <optgroup label="Receitas">
+                                <option value="Salário">💼 Salário / Pró-labore</option>
+                                <option value="Freelance">💻 Freelance / Consultoria</option>
+                                <option value="Vendas">🛒 Vendas / Comissões</option>
+                                <option value="Rendimentos">📊 Dividendos / Rendimentos</option>
+                                <option value="Outros">💎 Outros Ganhos</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label" for="txDate">Data</label>
+                        <input type="date" class="input-field" id="txDate" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label" for="txAccount">Conta / Carteira</label>
+                        <select class="input-field" id="txAccount">
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
+
+                    <div class="input-group" id="groupDestAccount" style="display: none;">
+                        <label class="input-label" for="txDestAccount">Conta Destino</label>
+                        <select class="input-field" id="txDestAccount">
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Extra Options Row (Installments & Recurring) -->
+                <div class="extra-options-row">
+                    <!-- Installments Checkbox -->
+                    <label class="checkbox-toggle">
+                        <input type="checkbox" id="chkInstallment">
+                        <span>Parcelar lançamento</span>
+                    </label>
+
+                    <div class="conditional-subgroup" id="subgroupInstallments">
+                        <span style="font-size: 0.85rem; color: var(--text-secondary);">Quantidade:</span>
+                        <select class="input-mini-select" id="txInstallmentsCount">
+                            <option value="2">2x</option>
+                            <option value="3">3x</option>
+                            <option value="4">4x</option>
+                            <option value="5">5x</option>
+                            <option value="6">6x</option>
+                            <option value="10">10x</option>
+                            <option value="12">12x</option>
+                            <option value="18">18x</option>
+                            <option value="24">24x</option>
+                            <option value="36">36x</option>
+                        </select>
+                    </div>
+
+                    <!-- Recurring Checkbox -->
+                    <label class="checkbox-toggle">
+                        <input type="checkbox" id="chkRecurring">
+                        <span>Lançamento fixo / recorrente</span>
+                    </label>
+
+                    <!-- Status Selector -->
+                    <div style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
+                        <span style="font-size: 0.82rem; color: var(--text-secondary);">Status:</span>
+                        <select class="input-mini-select" id="txStatus">
+                            <option value="paid">✓ Pago / Realizado</option>
+                            <option value="pending">⏳ Agendado / Pendente</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-actions-bar">
+                    <button type="button" class="btn-ghost-action" onclick="app.resetTxForm()">
+                        Limpar
+                    </button>
+                    <button type="submit" class="btn-primary-action" id="btnSubmitTx">
+                        <i class="fas fa-plus"></i> Adicionar Lançamento
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- ==========================================================================
+             TRANSACTIONS LEDGER LIST
+             ========================================================================== -->
+        <section class="ledger-card glass">
+            <div class="ledger-toolbar">
+                <div class="ledger-title">
+                    <i class="fas fa-receipt" style="color: var(--accent-cyan);"></i>
+                    Extrato de Lançamentos
+                </div>
+                <div class="ledger-search-box">
+                    <i class="fas fa-search" style="color: var(--text-muted);"></i>
+                    <input type="text" id="txSearchInput" placeholder="Buscar por descrição ou categoria...">
+                </div>
+            </div>
+
+            <div class="ledger-items-container" id="transactionsLedgerList">
+                <!-- Dynamically populated by JS -->
+            </div>
+        </section>
+
+    </div>
+
+    <!-- ==========================================================================
+         MODAL: IMPORT OFX / STATEMENT
+         ========================================================================== -->
+    <div class="modal-overlay" id="modalOFX">
+        <div class="modal-window">
+            <div class="modal-header-row">
+                <div class="modal-title">
+                    <i class="fas fa-file-invoice-dollar" style="color: var(--accent-emerald);"></i>
+                    Importador de Extrato Bancário (.OFX)
+                </div>
+                <button type="button" class="modal-close-btn" onclick="app.closeModal('modalOFX')">&times;</button>
+            </div>
+
+            <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 16px;">
+                Exporte o extrato do seu banco em formato <strong>.OFX</strong> (Nubank, Itaú, Inter, Bradesco, BB, Santander, C6) e arraste abaixo.
+            </p>
+
+            <div class="dropzone-box" onclick="document.getElementById('fileOFXInput').click()">
+                <div class="dropzone-icon"><i class="fas fa-cloud-arrow-up"></i></div>
+                <div style="font-weight: 600; margin-bottom: 4px;">Arraste seu arquivo .OFX aqui</div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">ou clique para selecionar do computador</div>
+                <input type="file" id="fileOFXInput" accept=".ofx" style="display: none;" onchange="app.handleOFXFile(this.files[0]); app.closeModal('modalOFX');">
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================================================
+         MODAL: OFX PREVIEW & CONFIRMATION
+         ========================================================================== -->
+    <div class="modal-overlay" id="modalOFXPreview">
+        <div class="modal-window large">
+            <div class="modal-header-row">
+                <div class="modal-title">
+                    <i class="fas fa-list-check" style="color: var(--accent-cyan);"></i>
+                    Confirmar Importação de Extrato
+                </div>
+                <button type="button" class="modal-close-btn" onclick="app.closeModal('modalOFXPreview')">&times;</button>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                <span id="ofxTotalCount" style="font-weight: 600; color: var(--accent-emerald);"></span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 0.85rem; color: var(--text-secondary);">Destinar para a conta:</span>
+                    <select class="input-mini-select" id="ofxTargetAccount">
+                        <option value="nubank">Nubank</option>
+                        <option value="itau">Itaú</option>
+                        <option value="carteira">Carteira</option>
+                        <option value="investimentos">Investimentos</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="ofxPreviewList" style="max-height: 380px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: var(--radius-md); border: 1px solid var(--border-subtle); margin-bottom: 20px;">
+                <!-- Populated dynamically -->
+            </div>
+
+            <div class="form-actions-bar">
+                <button type="button" class="btn-ghost-action" onclick="app.closeModal('modalOFXPreview')">Cancelar</button>
+                <button type="button" class="btn-primary-action" onclick="app.confirmOFXImport()">
+                    <i class="fas fa-check"></i> Importar Lançamentos
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================================================
+         MODAL: FINANCIAL CALCULATORS (JUROS COMPOSTOS & CLT X PJ)
+         ========================================================================== -->
+    <div class="modal-overlay" id="modalCalculators">
+        <div class="modal-window large">
+            <div class="modal-header-row">
+                <div class="modal-title">
+                    <i class="fas fa-calculator" style="color: var(--accent-amber);"></i>
+                    Calculadoras Financeiras Integradas
+                </div>
+                <button type="button" class="modal-close-btn" onclick="app.closeModal('modalCalculators')">&times;</button>
+            </div>
+
+            <!-- Tab Buttons -->
+            <div style="display: flex; gap: 8px; margin-bottom: 20px;">
+                <button type="button" class="btn-ghost-action active" id="tabBtnInterest" onclick="document.getElementById('secInterest').style.display='block'; document.getElementById('secCltPj').style.display='none'; this.style.borderColor='var(--accent-emerald)'; document.getElementById('tabBtnCltPj').style.borderColor='var(--border-subtle)';" style="border-color: var(--accent-emerald);">
+                    <i class="fas fa-chart-line"></i> Juros Compostos
+                </button>
+                <button type="button" class="btn-ghost-action" id="tabBtnCltPj" onclick="document.getElementById('secInterest').style.display='none'; document.getElementById('secCltPj').style.display='block'; this.style.borderColor='var(--accent-emerald)'; document.getElementById('tabBtnInterest').style.borderColor='var(--border-subtle)';">
+                    <i class="fas fa-scale-balanced"></i> CLT vs PJ
+                </button>
+            </div>
+
+            <!-- Section 1: Juros Compostos -->
+            <div id="secInterest">
+                <div class="inputs-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
+                    <div class="input-group">
+                        <label class="input-label">Aporte Inicial (R$)</label>
+                        <input type="number" id="calcInitial" class="input-field" value="1000" oninput="app.calculateCompoundInterest()">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Aporte Mensal (R$)</label>
+                        <input type="number" id="calcMonthly" class="input-field" value="500" oninput="app.calculateCompoundInterest()">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Taxa Anual (% ao ano)</label>
+                        <input type="number" id="calcAnnualRate" class="input-field" value="12" step="0.1" oninput="app.calculateCompoundInterest()">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Prazo (Anos)</label>
+                        <input type="number" id="calcYears" class="input-field" value="5" oninput="app.calculateCompoundInterest()">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-top: 18px; padding: 18px; background: rgba(0,0,0,0.3); border-radius: var(--radius-md);">
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">TOTAL INVESTIDO</div>
+                        <div id="calcResInvested" style="font-size: 1.15rem; font-weight: 700; color: #ffffff;">R$ 0,00</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">GANHOS EM JUROS</div>
+                        <div id="calcResInterest" style="font-size: 1.15rem; font-weight: 700; color: var(--text-emerald);">R$ 0,00</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">PATRIMÔNIO FINAL</div>
+                        <div id="calcResTotal" style="font-size: 1.3rem; font-weight: 800; color: var(--accent-cyan);">R$ 0,00</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 2: CLT vs PJ -->
+            <div id="secCltPj" style="display: none;">
+                <div class="inputs-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+                    <div class="input-group">
+                        <label class="input-label">Salário Bruto CLT (R$)</label>
+                        <input type="number" id="cltGross" class="input-field" value="7000" oninput="app.calculateCltVsPj()">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Benefícios CLT (VR/VA/Plano) R$</label>
+                        <input type="number" id="cltBenefits" class="input-field" value="1200" oninput="app.calculateCltVsPj()">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Proposta Bruta PJ (R$)</label>
+                        <input type="number" id="pjGross" class="input-field" value="12000" oninput="app.calculateCltVsPj()">
+                    </div>
+                </div>
+
+                <div style="margin-top: 18px; padding: 18px; background: rgba(0,0,0,0.3); border-radius: var(--radius-md);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">CLT (Líquido Real c/ 13º, Férias e FGTS diluídos)</div>
+                            <div id="resCltNet" style="font-size: 1.2rem; font-weight: 700;">R$ 0,00</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">PJ (Líquido após Simples e Contador)</div>
+                            <div id="resPjNet" style="font-size: 1.2rem; font-weight: 700; color: var(--accent-cyan);">R$ 0,00</div>
+                        </div>
+                    </div>
+                    <div id="resVerdict" style="font-size: 0.95rem; font-weight: 600; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.04); text-align: center;"></div>
+                </div>
+            </div>
+
+            <div class="form-actions-bar" style="margin-top: 20px;">
+                <button type="button" class="btn-ghost-action" onclick="app.closeModal('modalCalculators')">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================================================
+         MODAL: NEW ACCOUNT
+         ========================================================================== -->
+    <div class="modal-overlay" id="modalAccount">
+        <div class="modal-window">
+            <div class="modal-header-row">
+                <div class="modal-title">
+                    <i class="fas fa-university" style="color: var(--accent-cyan);"></i>
+                    Nova Conta / Carteira
+                </div>
+                <button type="button" class="modal-close-btn" onclick="app.closeModal('modalAccount')">&times;</button>
+            </div>
+
+            <div class="inputs-grid" style="grid-template-columns: 1fr;">
+                <div class="input-group">
+                    <label class="input-label">Nome da Conta / Banco</label>
+                    <input type="text" id="newAccName" class="input-field" placeholder="Ex: Inter, Mercado Pago, Cripto...">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">Saldo Inicial (R$)</label>
+                    <input type="number" step="0.01" id="newAccBalance" class="input-field" placeholder="0,00" value="0">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">Ícone / Emoji</label>
+                    <input type="text" id="newAccIcon" class="input-field" value="🏦" style="font-size: 1.2rem;">
+                </div>
+            </div>
+
+            <div class="form-actions-bar" style="margin-top: 20px;">
+                <button type="button" class="btn-ghost-action" onclick="app.closeModal('modalAccount')">Cancelar</button>
+                <button type="button" class="btn-primary-action" onclick="
+                    const name = document.getElementById('newAccName').value.trim();
+                    const bal = parseFloat(document.getElementById('newAccBalance').value) || 0;
+                    const icon = document.getElementById('newAccIcon').value.trim() || '🏦';
+                    if (name) {
+                        app.accounts.push({ id: 'acc_' + Date.now(), name, balance: bal, icon, color: '#06b6d4' });
+                        app.populateAccountSelects();
+                        app.renderAccountsStrip();
+                        app.saveState();
+                        app.closeModal('modalAccount');
+                        app.showToast('Conta cadastrada com sucesso!');
+                    }
+                ">
+                    <i class="fas fa-check"></i> Salvar Conta
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Stack -->
+    <div class="toast-stack" id="toastStack"></div>
+
+    <!-- Core Engine Script -->
+    <script src="script.js"></script>
+</body>
+</html>

@@ -119,13 +119,41 @@ body {
 
 .brand-badge {
     background: linear-gradient(135deg, var(--accent-emerald), var(--accent-cyan));
-    color: #0b0f19;
+    color: #0b0f19 !important;
+    -webkit-text-fill-color: #0b0f19 !important;
     font-size: 0.65rem;
     font-weight: 800;
-    padding: 2px 7px;
+    padding: 2px 8px;
     border-radius: var(--radius-full);
     text-transform: uppercase;
     letter-spacing: 1px;
+    vertical-align: middle;
+    display: inline-block;
+}
+
+.btn-clean-cycle {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 15px;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-radius: 9999px;
+    color: #fbbf24;
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+}
+
+.btn-clean-cycle:hover {
+    background: rgba(245, 158, 11, 0.22);
+    border-color: rgba(245, 158, 11, 0.6);
+    color: #fef3c7;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.25);
 }
 
 .brand-subtitle {

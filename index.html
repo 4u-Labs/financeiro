@@ -21,7 +21,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 
     <!-- Fintech Design System Stylesheet -->
-    <link rel="stylesheet" href="style.css?v=2.0.3"/>
+    <link rel="stylesheet" href="style.css?v=2.0.4"/>
 
     <!-- Libraries (Chart.js & jsPDF) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
@@ -72,6 +72,11 @@
 
             <!-- Actions Controls -->
             <div class="topbar-controls">
+                <!-- Iniciar do Zero Button -->
+                <button type="button" class="btn-clean-cycle" onclick="app.clearTransactionsOnly()" title="Apagar lançamentos de exemplo e iniciar suas finanças do zero">
+                    <i class="fas fa-broom"></i> Iniciar do Zero
+                </button>
+
                 <!-- Privacy Mode Button -->
                 <button type="button" class="btn-icon" id="btnPrivacyToggle" title="Ocultar valores monetários" onclick="app.togglePrivacyMode()">
                     <i class="fas fa-eye"></i>
@@ -637,6 +642,6 @@
     <div class="toast-stack" id="toastStack"></div>
 
     <!-- Core Engine Script -->
-    <script src="script.js?v=2.0.3"></script>
+    <script src="script.js?v=2.0.4"></script>
 </body>
 </html>

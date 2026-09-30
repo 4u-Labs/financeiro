@@ -1299,6 +1299,16 @@ class FinanceProApp {
         this.showToast('Dados de demonstração carregados com sucesso!', 'success');
     }
 
+    clearTransactionsOnly() {
+        if (confirm('Deseja apagar todos os lançamentos para começar o seu controle financeiro do zero? Suas contas e saldos base serão mantidos.')) {
+            this.transactions = [];
+            this.saveData(this.STORAGE_TX, this.transactions);
+            localStorage.setItem('financial_seeded', 'true');
+            this.refreshAll();
+            this.showToast('Lançamentos apagados! Pronto para registrar suas movimentações.', 'success');
+        }
+    }
+
     resetAllData() {
         if (confirm('ATENÇÃO: Deseja apagar TODOS os lançamentos, contas e configurações? Esta ação é irreversível.')) {
             localStorage.removeItem(this.STORAGE_TX);

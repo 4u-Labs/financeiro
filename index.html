@@ -21,7 +21,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 
     <!-- Fintech Design System Stylesheet -->
-    <link rel="stylesheet" href="style.css?v=2.0.2"/>
+    <link rel="stylesheet" href="style.css?v=2.0.3"/>
 
     <!-- Libraries (Chart.js & jsPDF) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
@@ -108,8 +108,14 @@
                             <i class="fas fa-arrow-rotate-left" style="color: var(--accent-blue);"></i> Restaurar Backup (JSON)
                         </button>
                         <hr style="border: 0; border-top: 1px solid var(--border-subtle); margin: 4px 0;">
+                        <button type="button" class="dropdown-item" onclick="app.clearTransactionsOnly(); app.toggleDropdown('menuSync');" style="color: var(--accent-amber);">
+                            <i class="fas fa-broom"></i> Limpar Lançamentos (Iniciar do Zero)
+                        </button>
+                        <button type="button" class="dropdown-item" onclick="app.loadDemoData(); app.toggleDropdown('menuSync');" style="color: var(--accent-emerald);">
+                            <i class="fas fa-wand-magic-sparkles"></i> Recarregar Modelo Exemplo
+                        </button>
                         <button type="button" class="dropdown-item danger" onclick="app.resetAllData()">
-                            <i class="fas fa-trash-can"></i> Zerar / Reset Geral
+                            <i class="fas fa-trash-can"></i> Zerar Tudo / Reset de Fábrica
                         </button>
                     </div>
                 </div>
@@ -397,9 +403,14 @@
                     <i class="fas fa-receipt" style="color: var(--accent-cyan);"></i>
                     Extrato de Lançamentos
                 </div>
-                <div class="ledger-search-box">
-                    <i class="fas fa-search" style="color: var(--text-muted);"></i>
-                    <input type="text" id="txSearchInput" placeholder="Buscar por descrição ou categoria...">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <div class="ledger-search-box">
+                        <i class="fas fa-search" style="color: var(--text-muted);"></i>
+                        <input type="text" id="txSearchInput" placeholder="Buscar lançamentos...">
+                    </div>
+                    <button type="button" class="btn-ghost-action" onclick="app.clearTransactionsOnly()" style="font-size: 0.8rem; padding: 7px 12px; gap: 6px; white-space: nowrap; border-color: rgba(245, 158, 11, 0.4); color: var(--accent-amber);" title="Apagar todos os lançamentos e iniciar seu controle real do zero">
+                        <i class="fas fa-broom"></i> Iniciar do Zero
+                    </button>
                 </div>
             </div>
 
@@ -626,6 +637,6 @@
     <div class="toast-stack" id="toastStack"></div>
 
     <!-- Core Engine Script -->
-    <script src="script.js?v=2.0.2"></script>
+    <script src="script.js?v=2.0.3"></script>
 </body>
 </html>

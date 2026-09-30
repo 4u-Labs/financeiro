@@ -14,13 +14,20 @@
 
 ## 🌟 Visão Geral
 
-O **4U Finance Pro** é uma plataforma moderna e completa de controle financeiro pessoal e corporativo, desenvolvida sob o conceito **100% Offline-First (Zero-Knowledge)**. 
+O **4U Finance Pro** é uma plataforma moderna e completa de controle financeiro pessoal e corporativo, desenvolvida sob o conceito **Zero-Knowledge com Backup Privado no Google Drive**. 
 
-Seus dados financeiros, extratos bancários e saldos **nunca saem do seu navegador**. O aplicativo dispensa cadastros invasivos, mensalidades e conexões arriscadas com APIs bancárias terceirizadas, entregando ferramentas de nível institucional diretamente no front-end.
+Seus dados financeiros, extratos bancários e saldos **pertencem exclusivamente a você**. Com a integração oficial via **Google Identity Services (GIS)**, o aplicativo dispensa formulários ou senhas manuais e sincroniza seu banco de dados diretamente em uma pasta dedicada (**`4U Finance Pro`**) no seu próprio **Google Drive**.
 
 ---
 
 ## ⚡ Principais Funcionalidades
+
+### 0. ☁️ Login com Google & Nuvem Privada Google Drive
+- **Autenticação em 1 clique:** Login simplificado e sem senhas com sua conta Google.
+- **Pasta Exclusiva no Drive:** Cria automaticamente a pasta `4U Finance Pro` e o arquivo `4u_finance_database.json`.
+- **Sincronização em Tempo Real:** Toda alteração é salva no Drive com debounce e cache local para performance instantânea.
+- **Acesso Multiplataforma:** Abra suas finanças em qualquer computador ou smartphone mantendo seus dados sempre atualizados.
+
 
 ### 1. 💳 Motor de Parcelamento & Recorrência
 - Lançamento inteligente de compras parceladas em até **72x**.

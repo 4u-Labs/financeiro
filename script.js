@@ -5,6 +5,556 @@
  * Installments Engine, and Embedded Financial Calculators.
  */
 
+/**
+ * ==========================================================================
+ * GOOGLE DRIVE CLIENT-SIDE SYNC ENGINE (ZERO-KNOWLEDGE)
+ * ==========================================================================
+ * Autenticação via Google Identity Services (GIS).
+ * Cria/Localiza a pasta "4U Finance Pro" no Google Drive do usuário
+ * e sincroniza 4u_finance_database.json diretamente entre navegador e Google Drive.
+ */
+class GoogleDriveSync {
+    constructor(app) {
+        this.app = app;
+        this.CLIENT_ID = '569266864432-pd09jbb5no9ekdhdr018fj643nopp817.apps.googleusercontent.com';
+        this.SCOPES = 'openid email profile https://www.googleapis.com/auth/drive.file';
+        this.FOLDER_NAME = '4U Finance Pro';
+        this.FILE_NAME = '4u_finance_database.json';
+
+        this.user = this.getStoredUser();
+        this.tokenData = this.getStoredToken();
+        this.folderId = localStorage.getItem('4u_drive_folder_id') || null;
+        this.fileId = localStorage.getItem('4u_drive_file_id') || null;
+        this.lastSyncTime = localStorage.getItem('4u_drive_last_sync') || null;
+
+        this.tokenClient = null;
+        this.isSyncing = false;
+        this.syncDebounceTimer = null;
+    }
+
+    getStoredUser() {
+        try {
+            const u = localStorage.getItem('4u_google_user');
+            return u ? JSON.parse(u) : null;
+        } catch (e) { return null; }
+    }
+
+    getStoredToken() {
+        try {
+            const t = localStorage.getItem('4u_google_token');
+            if (!t) return null;
+            const parsed = JSON.parse(t);
+            if (parsed.expires_at && Date.now() > parsed.expires_at - 60000) {
+                return null;
+            }
+            return parsed;
+        } catch (e) { return null; }
+    }
+
+    init() {
+        this.renderTopbar();
+        this.ensureGISClient();
+
+        if (this.user) {
+            this.closeAuthModal();
+            this.initialSync();
+        } else {
+            this.openAuthModal();
+        }
+    }
+
+    ensureGISClient() {
+        if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+            if (!this.tokenClient) {
+                this.tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: this.CLIENT_ID,
+                    scope: this.SCOPES,
+                    callback: async (tokenResponse) => {
+                        if (tokenResponse && tokenResponse.access_token) {
+                            await this.handleTokenSuccess(tokenResponse);
+                        } else if (tokenResponse && tokenResponse.error) {
+                            this.showAuthError('Erro na autorização do Google: ' + tokenResponse.error);
+                        }
+                    }
+                });
+            }
+            return true;
+        }
+        return false;
+    }
+
+    openAuthModal() {
+        const modal = document.getElementById('modalGoogleAuth');
+        if (modal) modal.classList.add('open');
+    }
+
+    closeAuthModal() {
+        const modal = document.getElementById('modalGoogleAuth');
+        if (modal) modal.classList.remove('open');
+    }
+
+    showAuthError(msg) {
+        const errBox = document.getElementById('googleAuthErrorBox');
+        if (errBox) {
+            errBox.textContent = msg;
+            errBox.style.display = 'block';
+        } else {
+            this.app.showToast(msg, 'error');
+        }
+    }
+
+    login() {
+        const btn = document.getElementById('btnGoogleSignInModal');
+        const txt = document.getElementById('btnGoogleText');
+        if (btn) btn.disabled = true;
+        if (txt) txt.textContent = 'Conectando ao Google...';
+
+        const errBox = document.getElementById('googleAuthErrorBox');
+        if (errBox) errBox.style.display = 'none';
+
+        if (!this.ensureGISClient()) {
+            this.showAuthError('Aguardando carregamento da biblioteca do Google... Tente novamente em alguns segundos.');
+            if (btn) btn.disabled = false;
+            if (txt) txt.textContent = 'Continuar com Conta Google';
+            return;
+        }
+
+        try {
+            this.tokenClient.requestAccessToken({ prompt: 'consent' });
+        } catch (e) {
+            console.error('GIS Error:', e);
+            this.showAuthError('Erro ao iniciar login Google: ' + e.message);
+            if (btn) btn.disabled = false;
+            if (txt) txt.textContent = 'Continuar com Conta Google';
+        }
+    }
+
+    async handleTokenSuccess(tokenResponse) {
+        const btn = document.getElementById('btnGoogleSignInModal');
+        const txt = document.getElementById('btnGoogleText');
+        if (txt) txt.textContent = 'Configurando Google Drive...';
+
+        const accessToken = tokenResponse.access_token;
+        const expiresIn = parseInt(tokenResponse.expires_in) || 3599;
+        this.tokenData = {
+            access_token: accessToken,
+            expires_at: Date.now() + (expiresIn * 1000)
+        };
+        localStorage.setItem('4u_google_token', JSON.stringify(this.tokenData));
+
+        try {
+            // Obter Perfil do Usuário
+            const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${accessToken}` }
+            });
+            if (userRes.ok) {
+                const profile = await userRes.json();
+                this.user = {
+                    name: profile.name || profile.given_name || 'Usuário',
+                    email: profile.email || '',
+                    picture: profile.picture || ''
+                };
+                localStorage.setItem('4u_google_user', JSON.stringify(this.user));
+            }
+
+            this.renderTopbar();
+            this.closeAuthModal();
+
+            // Sincronizar dados do Drive
+            await this.initialSync();
+
+        } catch (err) {
+            console.error('Error post-login:', err);
+            this.app.showToast('Erro ao sincronizar com Google Drive.', 'error');
+        } finally {
+            if (btn) btn.disabled = false;
+            if (txt) txt.textContent = 'Continuar com Conta Google';
+        }
+    }
+
+    useOfflineDemo() {
+        this.closeAuthModal();
+        this.app.showToast('Modo demonstração ativado. As finanças ficarão salvas apenas neste navegador.', 'info');
+    }
+
+    logout() {
+        if (!confirm('Deseja realmente sair da sua conta Google?')) return;
+        
+        if (this.tokenData && this.tokenData.access_token && typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+            try {
+                google.accounts.oauth2.revoke(this.tokenData.access_token, () => {});
+            } catch (e) {}
+        }
+
+        this.user = null;
+        this.tokenData = null;
+        this.folderId = null;
+        this.fileId = null;
+        this.lastSyncTime = null;
+
+        localStorage.removeItem('4u_google_user');
+        localStorage.removeItem('4u_google_token');
+        localStorage.removeItem('4u_drive_folder_id');
+        localStorage.removeItem('4u_drive_file_id');
+        localStorage.removeItem('4u_drive_last_sync');
+
+        this.renderTopbar();
+        this.openAuthModal();
+        this.app.showToast('Você saiu da sua conta Google.', 'info');
+    }
+
+    renderTopbar() {
+        const container = document.getElementById('googleAuthTopbar');
+        if (!container) return;
+
+        if (this.user) {
+            const timeStr = this.lastSyncTime ? new Date(this.lastSyncTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+            container.innerHTML = `
+                <div class="drive-sync-pill ${this.isSyncing ? 'syncing' : ''}" 
+                     id="driveSyncPill" 
+                     onclick="app.googleDrive.syncManual()" 
+                     title="Salvo no Google Drive. Clique para sincronizar agora.">
+                    <i class="fas ${this.isSyncing ? 'fa-spinner fa-spin' : 'fa-cloud-arrow-up'}"></i>
+                    <span>${this.isSyncing ? 'Sincronizando...' : (timeStr ? 'Drive ' + timeStr : 'Drive Conectado')}</span>
+                </div>
+                
+                <div class="google-user-capsule" title="${this.user.name} (${this.user.email})">
+                    ${this.user.picture ? `<img src="${this.user.picture}" class="google-user-avatar" alt="Avatar">` : `<i class="fas fa-user-circle" style="font-size:1.3rem; color:#4285F4;"></i>`}
+                    <span class="google-user-name">${this.user.name.split(' ')[0]}</span>
+                    <button type="button" class="btn-logout-google" onclick="app.googleDrive.logout()" title="Sair da conta Google">
+                        <i class="fas fa-arrow-right-from-bracket"></i>
+                    </button>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <button type="button" class="btn-login-google-topbar" onclick="app.googleDrive.openAuthModal()">
+                    <i class="fab fa-google" style="color: #4285F4;"></i>
+                    <span>Entrar com Google</span>
+                </button>
+            `;
+        }
+    }
+
+    setSyncStatus(status, text) {
+        this.isSyncing = (status === 'syncing');
+        const pill = document.getElementById('driveSyncPill');
+        if (pill) {
+            pill.className = `drive-sync-pill ${status}`;
+            const icon = (status === 'syncing') ? 'fa-spinner fa-spin' : (status === 'error' ? 'fa-triangle-exclamation' : 'fa-cloud-arrow-up');
+            pill.innerHTML = `<i class="fas ${icon}"></i> <span>${text}</span>`;
+        }
+    }
+
+    async getValidToken() {
+        if (this.tokenData && this.tokenData.access_token) {
+            if (!this.tokenData.expires_at || Date.now() < this.tokenData.expires_at - 60000) {
+                return this.tokenData.access_token;
+            }
+        }
+        if (this.user && this.ensureGISClient()) {
+            return new Promise((resolve) => {
+                this.tokenClient.callback = (resp) => {
+                    if (resp && resp.access_token) {
+                        this.tokenData = {
+                            access_token: resp.access_token,
+                            expires_at: Date.now() + ((parseInt(resp.expires_in) || 3599) * 1000)
+                        };
+                        localStorage.setItem('4u_google_token', JSON.stringify(this.tokenData));
+                        resolve(resp.access_token);
+                    } else {
+                        resolve(null);
+                    }
+                };
+                this.tokenClient.requestAccessToken({ prompt: '' });
+            });
+        }
+        return null;
+    }
+
+    async getOrCreateAppFolder(token) {
+        if (this.folderId) return this.folderId;
+
+        const q = `name = '${this.FOLDER_NAME}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+        const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (searchRes.ok) {
+            const data = await searchRes.json();
+            if (data.files && data.files.length > 0) {
+                this.folderId = data.files[0].id;
+                localStorage.setItem('4u_drive_folder_id', this.folderId);
+                return this.folderId;
+            }
+        }
+
+        const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: this.FOLDER_NAME,
+                mimeType: 'application/vnd.google-apps.folder'
+            })
+        });
+
+        if (createRes.ok) {
+            const folder = await createRes.json();
+            this.folderId = folder.id;
+            localStorage.setItem('4u_drive_folder_id', this.folderId);
+            return this.folderId;
+        }
+
+        throw new Error('Falha ao criar pasta no Google Drive.');
+    }
+
+    async findDatabaseFile(token, folderId) {
+        if (this.fileId) return this.fileId;
+
+        const q = `name = '${this.FILE_NAME}' and '${folderId}' in parents and trashed = false`;
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,modifiedTime)`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            if (data.files && data.files.length > 0) {
+                this.fileId = data.files[0].id;
+                localStorage.setItem('4u_drive_file_id', this.fileId);
+                return this.fileId;
+            }
+        }
+        return null;
+    }
+
+    async initialSync() {
+        const token = await this.getValidToken();
+        if (!token) return;
+
+        this.setSyncStatus('syncing', 'Conectando ao Drive...');
+
+        try {
+            const folderId = await this.getOrCreateAppFolder(token);
+            const fileId = await this.findDatabaseFile(token, folderId);
+
+            if (fileId) {
+                const contentRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                if (contentRes.ok) {
+                    const cloudData = await contentRes.json();
+                    if (cloudData && (cloudData.transactions || cloudData.accounts)) {
+                        this.applyCloudDataToApp(cloudData);
+                        this.lastSyncTime = new Date().toISOString();
+                        localStorage.setItem('4u_drive_last_sync', this.lastSyncTime);
+                        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        this.setSyncStatus('success', 'Drive ' + timeStr);
+                        this.app.showToast('Finanças sincronizadas do Google Drive (Pasta: 4U Finance Pro)!', 'success');
+                        return;
+                    }
+                }
+            }
+
+            await this.uploadToDrive(token, folderId, fileId);
+            this.app.showToast('Pasta "4U Finance Pro" criada no seu Google Drive e dados salvos!', 'success');
+
+        } catch (e) {
+            console.error('Initial sync error:', e);
+            this.setSyncStatus('error', 'Erro ao sincronizar');
+        }
+    }
+
+    applyCloudDataToApp(cloudData) {
+        if (cloudData.transactions) {
+            this.app.transactions = cloudData.transactions;
+            localStorage.setItem(this.app.STORAGE_TX, JSON.stringify(this.app.transactions));
+        }
+        if (cloudData.accounts) {
+            this.app.accounts = cloudData.accounts;
+            localStorage.setItem(this.app.STORAGE_ACCOUNTS, JSON.stringify(this.app.accounts));
+        }
+        if (cloudData.cards) {
+            this.app.cards = cloudData.cards;
+            localStorage.setItem(this.app.STORAGE_CARDS, JSON.stringify(this.app.cards));
+        }
+        if (cloudData.goals) {
+            this.app.goals = cloudData.goals;
+            localStorage.setItem(this.app.STORAGE_GOALS, JSON.stringify(this.app.goals));
+        }
+        if (cloudData.settings) {
+            this.app.settings = { ...this.app.settings, ...cloudData.settings };
+            localStorage.setItem(this.app.STORAGE_SETTINGS, JSON.stringify(this.app.settings));
+        }
+
+        localStorage.setItem('financial_seeded', 'true');
+        this.app.populateAccountSelects();
+        this.app.refreshAll();
+    }
+
+    buildPayload() {
+        return {
+            app: '4U Finance Pro',
+            version: '2.0',
+            exportedAt: new Date().toISOString(),
+            user: this.user ? { name: this.user.name, email: this.user.email } : null,
+            transactions: this.app.transactions,
+            accounts: this.app.accounts,
+            cards: this.app.cards,
+            goals: this.app.goals,
+            settings: this.app.settings
+        };
+    }
+
+    async uploadToDrive(token, folderId, fileId) {
+        this.setSyncStatus('syncing', 'Salvando no Drive...');
+        const payload = this.buildPayload();
+        const jsonContent = JSON.stringify(payload, null, 2);
+
+        if (fileId) {
+            const updateRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+                method: 'PATCH',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json; charset=UTF-8'
+                },
+                body: jsonContent
+            });
+
+            if (!updateRes.ok) throw new Error('Erro ao atualizar arquivo no Drive');
+        } else {
+            const boundary = '-------4UFinanceDriveBoundary314159';
+            const delimiter = `\r\n--${boundary}\r\n`;
+            const closeDelimiter = `\r\n--${boundary}--`;
+
+            const metadata = {
+                name: this.FILE_NAME,
+                parents: [folderId],
+                mimeType: 'application/json'
+            };
+
+            const multipartBody = 
+                delimiter +
+                'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+                JSON.stringify(metadata) +
+                delimiter +
+                'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+                jsonContent +
+                closeDelimiter;
+
+            const createRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': `multipart/related; boundary=${boundary}`
+                },
+                body: multipartBody
+            });
+
+            if (!createRes.ok) throw new Error('Erro ao criar arquivo no Drive');
+            const newFile = await createRes.json();
+            this.fileId = newFile.id;
+            localStorage.setItem('4u_drive_file_id', this.fileId);
+        }
+
+        this.lastSyncTime = new Date().toISOString();
+        localStorage.setItem('4u_drive_last_sync', this.lastSyncTime);
+        const timeStr = new Date(this.lastSyncTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        this.setSyncStatus('success', 'Drive ' + timeStr);
+    }
+
+    scheduleAutoSync() {
+        if (!this.user) return;
+        if (this.syncDebounceTimer) clearTimeout(this.syncDebounceTimer);
+
+        this.setSyncStatus('syncing', 'Sincronizando...');
+
+        this.syncDebounceTimer = setTimeout(async () => {
+            try {
+                const token = await this.getValidToken();
+                if (!token) {
+                    this.setSyncStatus('error', 'Reautenticar');
+                    return;
+                }
+                const folderId = await this.getOrCreateAppFolder(token);
+                const fileId = await this.findDatabaseFile(token, folderId);
+                await this.uploadToDrive(token, folderId, fileId);
+            } catch (err) {
+                console.error('AutoSync error:', err);
+                this.setSyncStatus('error', 'Falha ao salvar');
+            }
+        }, 1500);
+    }
+
+    async syncManual() {
+        if (!this.user) {
+            this.openAuthModal();
+            return;
+        }
+        try {
+            const token = await this.getValidToken();
+            if (!token) {
+                this.openAuthModal();
+                return;
+            }
+            const folderId = await this.getOrCreateAppFolder(token);
+            const fileId = await this.findDatabaseFile(token, folderId);
+            await this.uploadToDrive(token, folderId, fileId);
+            this.app.showToast('Dados sincronizados no Google Drive com sucesso!', 'success');
+        } catch (e) {
+            console.error('Manual sync error:', e);
+            this.app.showToast('Erro ao sincronizar com Google Drive: ' + e.message, 'error');
+        }
+    }
+
+    async restoreFromDrive() {
+        if (!this.user) {
+            this.openAuthModal();
+            return;
+        }
+        if (!confirm('Deseja recarregar os dados do seu Google Drive? As alterações locais não salvas na nuvem serão substituídas.')) return;
+
+        try {
+            const token = await this.getValidToken();
+            if (!token) {
+                this.openAuthModal();
+                return;
+            }
+            const folderId = await this.getOrCreateAppFolder(token);
+            const fileId = await this.findDatabaseFile(token, folderId);
+            if (!fileId) {
+                this.app.showToast('Nenhum arquivo de banco de dados encontrado no Google Drive.', 'warning');
+                return;
+            }
+
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const cloudData = await res.json();
+                this.applyCloudDataToApp(cloudData);
+                this.app.showToast('Dados recarregados da nuvem com sucesso!', 'success');
+            } else {
+                throw new Error('Falha ao baixar arquivo');
+            }
+        } catch (e) {
+            console.error('Restore error:', e);
+            this.app.showToast('Falha ao recarregar dados do Drive: ' + e.message, 'error');
+        }
+    }
+
+    openDriveFolder() {
+        if (this.folderId) {
+            window.open(`https://drive.google.com/drive/folders/${this.folderId}`, '_blank');
+        } else {
+            window.open('https://drive.google.com/drive/u/0/my-drive', '_blank');
+        }
+    }
+}
+
 class FinanceProApp {
     constructor() {
         // Storage Keys
@@ -33,6 +583,7 @@ class FinanceProApp {
 
         this.editingTxId = null;
         this.deleteTxId = null;
+        this.googleDrive = new GoogleDriveSync(this);
 
         this.init();
     }
@@ -66,6 +617,9 @@ class FinanceProApp {
         } else {
             this.refreshAll();
         }
+
+        // Inicializa autenticação Google e sincronização Google Drive
+        this.googleDrive.init();
     }
 
     // ==========================================================================
@@ -1271,6 +1825,9 @@ class FinanceProApp {
     saveData(key, data) {
         try {
             localStorage.setItem(key, JSON.stringify(data));
+            if (this.googleDrive) {
+                this.googleDrive.scheduleAutoSync();
+            }
         } catch (e) {
             console.error('Error saving data:', key, e);
         }

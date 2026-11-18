@@ -3,3 +3,12 @@
 scratch/
 .env
 data/*.db
+.env.local
+.config.php
+data/*.sqlite
+*.db
+*.sqlite
+api_logs.txt
+uploads/
+credentials.json
+.user_uploaded/
